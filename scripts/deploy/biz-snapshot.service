@@ -1,0 +1,13 @@
+[Unit]
+Description=biz-game — pull 1C snapshot into real.json
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/biz-game/scripts
+# creds are read from /opt/biz-game/scripts/.env by the script itself
+ExecStart=/usr/bin/python3 /opt/biz-game/scripts/build_snapshot.py
+# write straight into the directory nginx serves:
+Environment=SNAPSHOT_OUT=/opt/biz-game/app/dist/assets/data/real.json
+Nice=10
