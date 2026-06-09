@@ -58,6 +58,7 @@ const TABS: { id: string; icon: string; label: string }[] = [
 export class GameUI {
   private root: HTMLDivElement;
   private saleBtn?: HTMLButtonElement;
+  private dbBtn?: HTMLButtonElement;
   private content: HTMLDivElement;
   private ticker: HTMLDivElement;
   private model?: DashModel;
@@ -197,6 +198,36 @@ export class GameUI {
         /* появление блоков контента при открытии вкладки (CSS, не зависит от нагрузки JS) */
         #game-ui .gu-rv{animation:guRv .32s ease-out both}
         @keyframes guRv{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        /* терминал базы клиентов (Степаныч) — синтетические данные, заблюрены */
+        #gu-db-ov{position:absolute;z-index:78;left:0;top:0;bottom:0;right:340px;display:flex;flex-direction:column;
+          background-color:#06121a;background-image:radial-gradient(120% 100% at 50% 0%,#0e2630,#06121a);color:#bfeaff;
+          font-family:ui-monospace,Menlo,Consolas,monospace;overflow:hidden;cursor:pointer;animation:guRv .25s ease-out both}
+        #gu-db-ov .dbh{padding:14px 18px 10px;border-bottom:1px solid #1d4658;flex:0 0 auto}
+        #gu-db-ov .dbh .t{font-size:17px;font-weight:800;color:#7fe6ff;letter-spacing:.4px;text-shadow:0 0 12px #2bd4ff66}
+        #gu-db-ov .dbh .s{font-size:12px;color:#8fb6c8;margin-top:4px}
+        #gu-db-ov .dbh .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#39e08a;box-shadow:0 0 8px #39e08a;margin-right:6px;animation:gp 1.4s infinite}
+        #gu-db-ov .x{position:absolute;top:10px;right:14px;font-size:18px;color:#8fb6c8;cursor:pointer;z-index:3}
+        #gu-db-ov .dbwrap{position:relative;flex:1;overflow:hidden}
+        #gu-db-ov .dbrows{position:absolute;left:0;right:0;top:0;padding:0 18px;filter:blur(3.2px);animation:gudbScroll 24s linear infinite;will-change:transform}
+        #gu-db-ov .dbrow{display:flex;gap:14px;font-size:12.5px;line-height:2.05;white-space:nowrap;border-bottom:1px solid #ffffff10}
+        #gu-db-ov .dbrow span{overflow:hidden;text-overflow:clip}
+        #gu-db-ov .c-nm{flex:0 0 200px;color:#e3f4ff;font-weight:700}
+        #gu-db-ov .c-ci{flex:0 0 80px;color:#7fb0c4}
+        #gu-db-ov .c-ph{flex:0 0 150px;color:#9fd8ef}
+        #gu-db-ov .c-or{flex:0 0 66px}
+        #gu-db-ov .c-av{flex:0 0 92px;color:#ffd98a}
+        #gu-db-ov .c-lt{flex:0 0 120px;color:#8fe6a8}
+        #gu-db-ov .c-br{flex:0 0 86px;color:#c9a0ff}
+        #gu-db-ov .c-ls{flex:0 0 140px;color:#7fb0c4}
+        #gu-db-ov .c-st{flex:0 0 72px;color:#7fe6ff}
+        #gu-db-ov .scan{position:absolute;left:0;right:0;height:96px;pointer-events:none;
+          background:linear-gradient(180deg,#39e08a00,#39e08a18 50%,#39e08a00);animation:gudbScan 4.5s ease-in-out infinite}
+        #gu-db-ov .gfade{position:absolute;inset:0;pointer-events:none;
+          background:linear-gradient(180deg,#0a1f28 0%,#0a1f2800 14%,#0a1f2800 78%,#06121af2 100%)}
+        #gu-db-ov .hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:11px;color:#5f8294}
+        @keyframes gudbScroll{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+        @keyframes gudbScan{0%{top:-96px}100%{top:100%}}
+        @media (max-width:760px){#gu-db-ov{right:0;bottom:0}}
         /* спокойный режим */
         #game-ui.calm *{animation:none!important}
         #game-ui .calmbtn{cursor:pointer;background:none;border:none;color:#8a7a64;font-size:13px;padding:0 2px;line-height:1}
@@ -239,15 +270,37 @@ export class GameUI {
     sale.onmousedown = () => (sale.style.transform = 'translateY(1px)');
     sale.onmouseup = () => (sale.style.transform = 'none');
     sale.onclick = () => this.onSale?.();
-    // на телефоне панель снизу — переносим кнопку в левый верхний угол офиса
+    // плавающая кнопка «База клиентов» — терминал Степаныча со скроллом (заблюренных) данных
+    const db = document.createElement('button');
+    db.id = 'gu-db';
+    db.type = 'button';
+    db.textContent = '🗄 База клиентов';
+    db.title = 'Показать терминал данных клиентов (Степаныч)';
+    db.style.cssText = 'position:absolute;left:12px;z-index:80;cursor:pointer;border:1px solid #3a6a8a;'
+      + "background:linear-gradient(180deg,#3f7fa0,#2b5d78);color:#eaf6ff;font:700 13px 'Segoe UI',system-ui,sans-serif;"
+      + 'border-radius:10px;padding:9px 15px;box-shadow:0 4px 14px #0008;letter-spacing:.3px;transition:filter .12s,transform .06s';
+    db.onmouseenter = () => (db.style.filter = 'brightness(1.1)');
+    db.onmouseleave = () => (db.style.filter = 'none');
+    db.onmousedown = () => (db.style.transform = 'translateY(1px)');
+    db.onmouseup = () => (db.style.transform = 'none');
+    db.onclick = () => this.showClientData();
+
     const place = () => {
-      if (window.matchMedia('(max-width:760px)').matches) { sale.style.top = '8px'; sale.style.bottom = 'auto'; sale.style.left = '8px'; sale.style.padding = '7px 11px'; }
-      else { sale.style.bottom = '12px'; sale.style.top = 'auto'; sale.style.left = '12px'; sale.style.padding = '9px 15px'; }
+      const mob = window.matchMedia('(max-width:760px)').matches;
+      if (mob) {
+        sale.style.top = '8px'; sale.style.bottom = 'auto'; sale.style.left = '8px'; sale.style.padding = '7px 11px';
+        db.style.top = '46px'; db.style.bottom = 'auto'; db.style.left = '8px'; db.style.padding = '7px 11px';
+      } else {
+        sale.style.bottom = '12px'; sale.style.top = 'auto'; sale.style.left = '12px'; sale.style.padding = '9px 15px';
+        db.style.bottom = '54px'; db.style.top = 'auto'; db.style.left = '12px'; db.style.padding = '9px 15px';
+      }
     };
     place();
     window.addEventListener('resize', place);
     document.body.appendChild(sale);
+    document.body.appendChild(db);
     this.saleBtn = sale;
+    this.dbBtn = db;
 
     this.root = root;
     this.content = root.querySelector('#gu-body')!;
@@ -656,5 +709,66 @@ export class GameUI {
       .to(wrap, { opacity: 0, duration: 0.5, ease: 'power2.in' });
   }
 
-  destroy() { this.root.remove(); this.saleBtn?.remove(); document.getElementById('gu-bigbanner')?.remove(); }
+  // 🗄 Терминал «база клиентов» Степаныча: быстрый скролл СИНТЕТИЧЕСКИХ (не реальных!) данных,
+  // заблюренных — визуально показывает «ИИ видит всю базу», без показа настоящих клиентов.
+  showClientData() {
+    document.getElementById('gu-db-ov')?.remove();
+    const m = this.model;
+    const total = m?.clients.total ?? 3092;
+    const dormant = m?.dormant ?? 117;
+
+    const ri = (n: number) => Math.floor(Math.random() * n);
+    const pad = (n: number, l: number) => String(n).padStart(l, '0');
+    const types = ['Студия', 'Салон', 'Барбершоп', 'Бьюти-бар', 'СПА', 'ИП', 'Студия красоты'];
+    const names = ['Аврора', 'Шарм', 'Лотос', 'Глянец', 'Грация', 'Нимфа', 'Мираж', 'Эстетика', 'Каприз',
+      'Багира', 'Жемчуг', 'Орхидея', 'Камелия', 'Вуаль', 'Локон', 'Блеск', 'Фея', 'Магнолия', 'Сапфир', 'Ренессанс'];
+    const cities = ['Москва', 'СПб', 'Краснодар', 'Казань', 'Сочи', 'Ростов', 'Самара', 'Уфа', 'Тюмень', 'Пермь', 'Воронеж', 'Анапа'];
+    const brands = ['Estel', 'Kapous', 'Ollin', 'CONCEPT', 'Bouticle', 'Lebel', 'Selective', 'Dewal'];
+    const stats = ['активен', 'активен', 'спящий', 'новый', 'VIP'];
+
+    const row = () => {
+      const orders = 3 + ri(220);
+      const avg = 4000 + ri(15000);
+      const ltv = orders * avg;
+      const phone = `+7 9${pad(ri(100), 2)} ${pad(ri(1000), 3)}-${pad(ri(100), 2)}-${pad(ri(100), 2)}`;
+      const last = `${pad(1 + ri(28), 2)}.${pad(1 + ri(12), 2)}.202${4 + ri(2)}`;
+      return `<div class="dbrow">
+        <span class="c-nm">${types[ri(types.length)]} «${names[ri(names.length)]}»</span>
+        <span class="c-ci">${cities[ri(cities.length)]}</span>
+        <span class="c-ph">${phone}</span>
+        <span class="c-or">${orders} зак.</span>
+        <span class="c-av">${ksum(avg)}₽ ср.</span>
+        <span class="c-lt">LTV ${ksum(ltv)}₽</span>
+        <span class="c-br">${brands[ri(brands.length)]}</span>
+        <span class="c-ls">посл. ${last}</span>
+        <span class="c-st">${stats[ri(stats.length)]}</span>
+      </div>`;
+    };
+    const block = Array.from({ length: 28 }, row).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'gu-db-ov';
+    ov.innerHTML = `
+      <div class="x">✕</div>
+      <div class="dbh">
+        <div class="t">🐶 СТЕПАНЫЧ · доступ к базе клиентов</div>
+        <div class="s"><span class="dot"></span>подключено к 1С · ${total.toLocaleString('ru-RU')} контрагентов · ${dormant} спящих · знает по каждому: заказы, чек, LTV, бренды, контакты, историю</div>
+      </div>
+      <div class="dbwrap">
+        <div class="dbrows">${block}${block}</div>
+        <div class="scan"></div>
+        <div class="gfade"></div>
+        <div class="hint">данные обезличены · нажмите, чтобы закрыть</div>
+      </div>`;
+    ov.onclick = () => ov.remove();
+    document.body.appendChild(ov);
+  }
+
+  destroy() {
+    this.root.remove();
+    this.saleBtn?.remove();
+    this.dbBtn?.remove();
+    document.getElementById('gu-bigbanner')?.remove();
+    document.getElementById('gu-db-ov')?.remove();
+  }
 }

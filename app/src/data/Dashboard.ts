@@ -18,6 +18,7 @@ export interface DashModel {
   revenue: { today: number | null; week: number | null; month: number | null; forecast: number | null; plan: number | null; daysElapsed: number | null; daysInMonth: number | null; real: boolean; series7: { d: string; v: number }[] };
   orders: { today: number | null; month: number | null; avgCheck: number | null; real: boolean };
   clients: { total: number | null; active: number | null; real: boolean };
+  dormant: number | null; // спящих клиентов (из правил моста), для терминала Степаныча
   debts: { total: number | null; count: number | null; prevTotal: number | null; real: boolean };
   managers: { list: ManagerStat[]; real: boolean };
   topClients: { name: string; orders: number; revenue: number }[];
@@ -244,6 +245,7 @@ export function buildModel(snap: Snapshot): DashModel {
     },
     orders: { today: ordersToday, month: ordersMonth, avgCheck: snap.kpi?.avgCheck ?? null, real: hasKpi },
     clients: { total: clients, active: snap.kpi?.activeClientsMonth ?? null, real: snap.kpi?.clients != null },
+    dormant: snap.dormant?.count ?? null,
     debts: { total: dbt?.total ?? null, count: dbt?.count ?? null, prevTotal: dbt?.prevTotal ?? null, real: !!dbt },
     managers: { list: managers, real: mReal },
     topClients: snap.topClients ?? [],
