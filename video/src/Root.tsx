@@ -32,6 +32,16 @@ export const RemotionRoot: React.FC = () => {
         height={1920}
         defaultProps={{ src: 'stepanych-throne.png' }}
       />
+      {/* тот же трон, горизонталь 16:9 — под видео в пост Telegram */}
+      <Composition
+        id="StepanychThroneWide"
+        component={StepanychThrone}
+        durationInFrames={180}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ src: 'stepanych-throne.png' }}
+      />
       {/* Степаныч анализирует — анимируем содержимое экранов */}
       <Composition
         id="StepanychAnalyzes"
