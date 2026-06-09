@@ -119,9 +119,6 @@ export const StepanychResult: React.FC<Props> = ({ amount, clients, orders, labe
         >
           +{money(current)} ₽
         </div>
-        <div style={{ fontSize: 44, color: '#8fe6a8', marginTop: 14, fontWeight: 700 }}>
-          ≈ {(amount / 1e6).toFixed(2).replace('.', ',')} млн ₽
-        </div>
       </div>
 
       {/* низ: детали */}
