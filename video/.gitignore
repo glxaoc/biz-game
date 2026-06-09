@@ -1,3 +1,9 @@
 node_modules/
 out/
 .remotion/
+
+# исходные картинки-ассеты (бренд-материалы) — не публикуем, см. public/README.md
+public/*.png
+public/*.jpg
+public/*.jpeg
+public/*.webp
