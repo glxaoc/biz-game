@@ -194,6 +194,9 @@ export class GameUI {
           background:linear-gradient(180deg,#3a5a30,#2a4420);border:1px solid #7fd18a;border-radius:12px;
           padding:12px;color:#dff0d6;font-weight:800;box-shadow:0 8px 24px #0008;animation:bnr .4s ease-out}
         @keyframes bnr{0%{opacity:0;transform:translateY(-10px) scale(.96)}100%{opacity:1;transform:none}}
+        /* появление блоков контента при открытии вкладки (CSS, не зависит от нагрузки JS) */
+        #game-ui .gu-rv{animation:guRv .32s ease-out both}
+        @keyframes guRv{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
         /* спокойный режим */
         #game-ui.calm *{animation:none!important}
         #game-ui .calmbtn{cursor:pointer;background:none;border:none;color:#8a7a64;font-size:13px;padding:0 2px;line-height:1}
@@ -314,14 +317,14 @@ export class GameUI {
     if (this.tab === 'Выручка') this.animateBars();
   }
 
-  // плавное появление блоков контента при открытии вкладки (чипы/строки/карточки/графики)
+  // плавное появление блоков контента при открытии вкладки — через CSS-анимацию
+  // (идёт на компоновщике, не зависит от загрузки JS/gsap-тикера → блоки никогда не «застревают» невидимыми).
+  // В calm-режиме CSS-правило #game-ui.calm * отключает анимацию автоматически.
   private revealContent() {
-    if (this.calm) return;
-    const items = this.content.querySelectorAll('.chip, .pills, .big, .bars, .sub, .qhdr, .r, .card');
+    const items = this.content.querySelectorAll<HTMLElement>('.chip, .pills, .big, .bars, .sub, .qhdr, .r, .card');
     items.forEach((el, i) => {
-      gsap.fromTo(el,
-        { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.34, delay: Math.min(i * 0.04, 0.5), ease: 'power2.out', clearProps: 'transform' });
+      el.style.animationDelay = Math.min(i * 0.035, 0.45) + 's';
+      el.classList.add('gu-rv');
     });
   }
 
