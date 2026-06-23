@@ -5,5 +5,9 @@ import { defineConfig } from 'vite';
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/office/' : '/',
   server: { port: 5600, host: true },
-  build: { target: 'es2020' },
+  build: {
+    target: 'es2020',
+    // две страницы: офис (index) и кабинет агента-компаньона (agent)
+    rollupOptions: { input: { main: 'index.html', agent: 'agent.html' } },
+  },
 }));
