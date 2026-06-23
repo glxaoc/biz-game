@@ -1,4 +1,4 @@
-import { buildModel, type DashModel } from '../data/Dashboard';
+import { buildModel, firstName, type DashModel } from '../data/Dashboard';
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const rub = (n: number | null | undefined) =>
@@ -9,235 +9,178 @@ const plural = (n: number, one: string, few: string, many: string) => {
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
 };
-const today = () => new Date().toISOString().slice(0, 10);
-const ls = {
-  get<T>(k: string, d: T): T { try { const v = localStorage.getItem('stepanych.' + k); return v == null ? d : JSON.parse(v) as T; } catch { return d; } },
-  set(k: string, v: unknown) { try { localStorage.setItem('stepanych.' + k, JSON.stringify(v)); } catch { /* ignore */ } },
-};
+const SCENE = import.meta.env.BASE_URL + 'assets/agent/desk.png';
 
-const SPRITE = import.meta.env.BASE_URL + 'assets/tilesets/lz_dog_wake.png';
+// ── вопросы → ответы из реальных данных 1С ──────────────────────────────────
+type Q = { q: string; a: (m: DashModel) => string };
+const QUESTIONS: Q[] = [
+  {
+    q: 'Сколько вернул за прошлый месяц?',
+    a: (m) => { const r = m.reactivation?.lastMonth; return r && r.revenue > 0
+      ? `За ${r.label} я вернул ${r.clients} ${plural(r.clients, 'клиента', 'клиента', 'клиентов')} → +${rub(r.revenue)} (${r.orders} зак.). 🐾`
+      : 'По возврату за прошлый месяц данных пока нет.'; },
+  },
+  {
+    q: 'Сколько сейчас спящих?',
+    a: (m) => m.dormant ? `Сейчас молчат ${m.dormant} ${plural(m.dormant, 'клиент', 'клиента', 'клиентов')} — это деньги рядом. Могу поставить обзвон по крупным.` : 'Спящих почти нет — красота!',
+  },
+  {
+    q: 'Что уже в этом месяце?',
+    a: (m) => { const r = m.reactivation?.thisMonth; return r && r.revenue > 0
+      ? `В ${r.label} уже вернул ${r.clients} ${plural(r.clients, 'клиента', 'клиента', 'клиентов')} на +${rub(r.revenue)}. Идём по плану 💪`
+      : 'Месяц только начался — раскачиваюсь.'; },
+  },
+  {
+    q: 'Какой долг по базе?',
+    a: (m) => m.debts?.real && m.debts.total ? `Дебиторка: ${rub(m.debts.total)}${m.debts.count ? ` у ${m.debts.count} ${plural(m.debts.count, 'клиента', 'клиентов', 'клиентов')}` : ''}. При обзвоне заодно напомню про оплату.` : 'Долги сейчас в данных не вижу.',
+  },
+  {
+    q: 'Сколько всего клиентов?',
+    a: (m) => m.clients?.total != null ? `В базе ${m.clients.total.toLocaleString('ru-RU')} контрагентов. По каждому знаю ритм заказов.` : 'База ещё подгружается.',
+  },
+  {
+    q: 'Кто лучший менеджер?',
+    a: (m) => { const h = (m.managers?.list || []).filter((x) => !/админ|систем/i.test(x.name)); if (!h.length) return 'Данных по менеджерам нет.'; const lead = [...h].sort((a, b) => b.revenue - a.revenue)[0]; return `Лидер по выручке — ${firstName(lead.name)} (${rub(lead.revenue)}). Достойно!`; },
+  },
+  {
+    q: 'Что мне сделать сегодня?',
+    a: (m) => { const t = m.tasks?.today?.[0]; return t ? `${t.title}. ${t.action || ''}`.trim() : 'На сегодня всё под контролем 👍'; },
+  },
+];
 
-type Sugg = { id: string; type: 'win' | 'task'; text: string; detail: string; action: string };
-
-// ── данные → предложения Степаныча (тема: возврат «спящих» клиентов) ───────
-function suggestions(m: DashModel): Sugg[] {
-  const out: Sugg[] = [];
-  const r = m.reactivation;
-  if (r?.lastMonth && r.lastMonth.revenue > 0) {
-    const x = r.lastMonth;
-    out.push({
-      id: 'win-last', type: 'win',
-      text: `За ${x.label} я вернул ${x.clients} ${plural(x.clients, 'клиента', 'клиента', 'клиентов')} → +${rub(x.revenue)}! 🎉 Погнали возвращать дальше?`,
-      detail: `${x.orders} заказов от вернувшихся. Считаю по закрытым задачам реактивации в CRM — цифра честная.`,
-      action: 'Погнали! 🐾',
-    });
-  }
-  if (m.dormant && m.dormant > 0) {
-    out.push({
-      id: 'dormant', type: 'task',
-      text: `Сейчас «спящих» клиентов: ${m.dormant}. Запустить обзвон по самым крупным — это деньги, что лежат рядом.`,
-      detail: 'Спящие — те, кто раньше заказывал регулярно, но замолчал. Возврат старого клиента дешевле привлечения нового в разы.',
-      action: 'Беру в работу',
-    });
-  }
-  if (r?.thisMonth && r.thisMonth.revenue > 0) {
-    const x = r.thisMonth;
-    out.push({
-      id: 'win-this', type: 'win',
-      text: `В этом месяце (${x.label}) уже вернул ${x.clients} ${plural(x.clients, 'клиента', 'клиента', 'клиентов')} на +${rub(x.revenue)}. Добьём ещё?`,
-      detail: 'Это нарастающим итогом с начала месяца. Каждый возвращённый клиент — плюс к этой сумме.',
-      action: 'Добьём! 💪',
-    });
-  }
-  if (m.debts?.real && m.debts.total) {
-    out.push({
-      id: 'debt-soft', type: 'task',
-      text: `Кстати, по базе висит долг ${rub(m.debts.total)}${m.debts.count ? ` у ${m.debts.count} клиентов` : ''}. Часть из них — мои «спящие». Напомнить им сразу при возврате?`,
-      detail: 'При обзвоне на возврат заодно мягко напомнить про оплату — два дела за один звонок.',
-      action: 'Хорошая мысль',
-    });
-  }
-  return out;
-}
-
-// ── состояние ───────────────────────────────────────────────────────────────
 let model: DashModel | null = null;
-let queue: Sugg[] = [];
-let idx = 0;
-let mood = ls.get<number>('mood', 58);
+let busy = false;
+let streak = Number(localStorage.getItem('stepanych.asks') || 0);
 
-function bumpStreak() {
-  const last = ls.get<string>('lastActive', '');
-  const t = today();
-  if (last === t) return ls.get<number>('streak', 1);
-  const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  let s = ls.get<number>('streak', 0);
-  s = last === y ? s + 1 : 1;
-  ls.set('streak', s);
-  ls.set('lastActive', t);
-  return s;
-}
-const doneToday = (): string[] => {
-  const d = ls.get<{ date: string; ids: string[] }>('done', { date: '', ids: [] });
-  return d.date === today() ? d.ids : [];
-};
-const markDone = (id: string) => {
-  const ids = new Set(doneToday()); ids.add(id);
-  ls.set('done', { date: today(), ids: [...ids] });
-};
-
-// ── рендер ────────────────────────────────────────────────────────────────
 const app = document.getElementById('app')!;
 
 function shell() {
   app.innerHTML = `
   <style>
-    :root{color-scheme:dark}
-    *{box-sizing:border-box}
-    body{margin:0}
-    #app{min-height:100dvh;display:flex;justify-content:center;
-      background:radial-gradient(120% 80% at 50% 0%,#2a2014,#171009 70%,#0e0a06);
+    *{box-sizing:border-box} body{margin:0}
+    #app{min-height:100dvh;display:flex;justify-content:center;background:#0d0a06;
       font-family:'Segoe UI',system-ui,sans-serif;color:#f4efe6}
-    .wrap{width:100%;max-width:440px;min-height:100dvh;display:flex;flex-direction:column;
-      padding:14px 14px calc(14px + env(safe-area-inset-bottom));position:relative}
-    .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .who{display:flex;align-items:center;gap:8px}
-    .who .em{font-size:22px}
-    .who b{font-size:15px;letter-spacing:.2px}
-    .who small{display:block;color:#c9a06a;font-size:11px}
-    .streak{font-size:13px;background:#2a2014;border:1px solid #4a3a26;border-radius:20px;padding:4px 10px;color:#ffce8a}
-    .mood{height:9px;border-radius:6px;background:#2a2014;border:1px solid #4a3a26;margin-top:10px;overflow:hidden}
-    .mood i{display:block;height:100%;background:linear-gradient(90deg,#e7ad53,#5ec46a);transition:width .5s ease}
-    .moodlbl{font-size:10px;color:#9c8a72;margin-top:4px}
-    .stage{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;padding:14px 0}
-    .bubble{position:relative;background:#fbf3e2;color:#241a10;border-radius:16px;padding:14px 16px;
-      font-size:15px;line-height:1.35;max-width:380px;box-shadow:0 10px 26px #0007;animation:pop .35s ease both}
-    .bubble:after{content:'';position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);
+    .wrap{width:100%;max-width:480px;min-height:100dvh;display:flex;flex-direction:column;
+      padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+    .hd{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 8px}
+    .hd b{font-size:15px}.hd small{display:block;color:#c9a06a;font-size:11px}
+    .hd .who{display:flex;align-items:center;gap:8px}.hd .em{font-size:20px}
+    .hd .ask{font-size:13px;background:#1d160d;border:1px solid #4a3a26;border-radius:20px;padding:4px 10px;color:#ffce8a}
+    .stage{position:relative;width:100%;aspect-ratio:1122/1402;border-radius:14px;overflow:hidden;
+      background:#1a1208 center/cover no-repeat;box-shadow:0 12px 30px #000a;
+      animation:breathe 5s ease-in-out infinite}
+    @keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+    /* экран ноутбука «работает» */
+    .screen{position:absolute;left:5%;top:64.5%;width:27%;height:18%;transform:rotate(-5deg);
+      mix-blend-mode:screen;pointer-events:none;overflow:hidden;border-radius:4px}
+    .screen .glow{position:absolute;inset:-20%;background:radial-gradient(circle,rgba(255,224,140,.55),rgba(255,200,90,0) 70%);
+      animation:flick 2.4s ease-in-out infinite}
+    .screen .ln{position:absolute;left:0;right:0;height:14%;background:linear-gradient(90deg,#ffe88c00,#ffe88c88,#ffe88c00);
+      animation:scan 2.2s linear infinite}
+    .stage.search .screen .glow{animation:flick .25s steps(2) infinite;opacity:1}
+    .stage.search .screen .ln{animation:scan .5s linear infinite}
+    @keyframes flick{0%,100%{opacity:.5}50%{opacity:.9}}
+    @keyframes scan{from{top:-15%}to{top:100%}}
+    /* бумаги — вспышка при поиске */
+    .papers{position:absolute;left:69%;top:72%;width:28%;height:18%;pointer-events:none;
+      background:rgba(255,255,255,.5);opacity:0;mix-blend-mode:screen;border-radius:4px}
+    .stage.search .papers{animation:flash .6s ease-in-out infinite}
+    @keyframes flash{0%,100%{opacity:0}50%{opacity:.5}}
+    /* облачко-реплика */
+    .bubble{position:absolute;left:50%;top:6%;transform:translateX(-50%);width:88%;
+      background:#fbf3e2;color:#241a10;border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.34;
+      box-shadow:0 8px 22px #0008;animation:pop .3s ease both;text-align:center;min-height:54px;
+      display:flex;align-items:center;justify-content:center}
+    .bubble:after{content:'';position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);
       border:8px solid transparent;border-top-color:#fbf3e2;border-bottom:0}
-    .bubble .det{margin-top:8px;font-size:12.5px;color:#5a4733;display:none}
-    .bubble.show .det{display:block}
-    @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
-    .dogwrap{position:relative;height:230px;display:flex;align-items:flex-end;justify-content:center}
-    .dog{width:220px;height:220px;background-image:var(--spr);background-repeat:no-repeat;
-      background-size:880px 220px;image-rendering:pixelated;background-position:-440px 0;
-      animation:wag .7s steps(1) infinite}
-    .dog.happy{animation:trot .16s steps(1) infinite}
-    .dogwrap.hop{animation:hop .4s ease}
-    @keyframes wag{0%,49%{background-position:-440px 0}50%,100%{background-position:-660px 0}}
-    @keyframes trot{0%,49%{background-position:0 0}50%,100%{background-position:-220px 0}}
-    @keyframes hop{0%,100%{transform:translateY(0)}30%{transform:translateY(-26px)}60%{transform:translateY(-6px)}}
-    .shadow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:150px;height:18px;
-      background:radial-gradient(closest-side,#0008,transparent);border-radius:50%}
-    .acts{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-    .acts .row{display:flex;gap:8px}
-    button{cursor:pointer;border:1px solid #6b513a;border-radius:12px;padding:13px 12px;font:inherit;font-weight:700;
-      font-size:14px;color:#241405;flex:1;transition:filter .12s,transform .06s}
-    button:active{transform:translateY(1px)}
-    .b-do{background:linear-gradient(180deg,#7fe0a0,#46b673);border-color:#3a8a58}
-    .b-det{background:#2a2014;color:#e7d3a8;border-color:#4a3a26}
-    .b-later{background:#2a2014;color:#c9b8a4;border-color:#4a3a26}
-    .ft{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:#8a7a64}
+    @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(8px) scale(.97)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+    .spark{position:absolute;font-size:22px;pointer-events:none;animation:fly 1s ease-out forwards}
+    @keyframes fly{from{opacity:1;transform:translateY(0) scale(.6)}to{opacity:0;transform:translateY(-70px) scale(1.2)}}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;padding:12px 4px 4px}
+    .chips button{cursor:pointer;border:1px solid #6b513a;background:#2a2014;color:#f0e2cc;
+      border-radius:20px;padding:9px 13px;font:inherit;font-size:13px;font-weight:600;transition:filter .12s,transform .06s}
+    .chips button:hover{filter:brightness(1.12)} .chips button:active{transform:translateY(1px)}
+    .chips button:disabled{opacity:.45;cursor:default}
+    .ft{display:flex;justify-content:space-between;margin-top:auto;padding-top:10px;font-size:12px;color:#8a7a64}
     .ft a{color:#c9a06a;text-decoration:none}
-    .heart{position:absolute;font-size:24px;pointer-events:none;animation:fly 1.1s ease-out forwards}
-    @keyframes fly{from{opacity:1;transform:translateY(0) scale(.6)}to{opacity:0;transform:translateY(-120px) scale(1.3)}}
   </style>
   <div class="wrap">
     <div class="hd">
       <div class="who"><span class="em">🐶</span><div><b>Степаныч</b><small>ИИ-агент · возврат клиентов</small></div></div>
-      <div class="streak" id="streak">🔥 0</div>
+      <div class="ask" id="ask">💬 ${streak}</div>
     </div>
-    <div class="mood"><i id="moodbar" style="width:${mood}%"></i></div>
-    <div class="moodlbl" id="moodlbl">настроение</div>
-    <div class="stage">
-      <div class="bubble" id="bubble"><span id="btext">…</span><div class="det" id="bdet"></div></div>
-      <div class="dogwrap" id="dogwrap"><div class="dog" id="dog" style="--spr:url('${SPRITE}')"></div><div class="shadow"></div></div>
+    <div class="stage" id="stage" style="background-image:url('${SCENE}')">
+      <div class="bubble" id="bubble">Загружаю данные…</div>
+      <div class="screen"><div class="glow"></div><div class="ln"></div></div>
+      <div class="papers"></div>
     </div>
-    <div class="acts" id="acts"></div>
-    <div class="ft"><span id="hint">Степаныч готовит подсказки…</span><a href="./index.html">← в офис</a></div>
+    <div class="chips" id="chips"></div>
+    <div class="ft"><span>Спроси — посмотрю в данных 🐾</span><a href="./index.html">← в офис</a></div>
   </div>`;
-  document.getElementById('streak')!.textContent = '🔥 ' + ls.get<number>('streak', 0);
 }
 
-function setMood(v: number) {
-  mood = Math.max(0, Math.min(100, v));
-  ls.set('mood', mood);
-  (document.getElementById('moodbar') as HTMLElement).style.width = mood + '%';
-  const lbl = document.getElementById('moodlbl')!;
-  lbl.textContent = mood > 75 ? 'счастлив 🐾' : mood > 45 ? 'в тонусе' : mood > 20 ? 'скучает' : 'засыпает 😴';
+const stage = () => document.getElementById('stage')!;
+const bubble = () => document.getElementById('bubble')!;
+
+function setBubble(text: string) {
+  const b = bubble();
+  b.textContent = text;
+  b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
 }
 
-function happy() {
-  const dog = document.getElementById('dog')!, wrap = document.getElementById('dogwrap')!;
-  dog.classList.add('happy'); wrap.classList.add('hop');
+function sparkle() {
+  const s = stage();
   for (let i = 0; i < 6; i++) {
-    const h = document.createElement('div');
-    h.className = 'heart'; h.textContent = ['💛', '🪙', '✨'][i % 3];
-    h.style.left = 40 + Math.random() * 60 + '%'; h.style.bottom = '120px';
-    h.style.animationDelay = Math.random() * 0.2 + 's';
-    document.getElementById('dogwrap')!.appendChild(h);
-    setTimeout(() => h.remove(), 1300);
+    const el = document.createElement('div');
+    el.className = 'spark'; el.textContent = ['✨', '💛', '🪙'][i % 3];
+    el.style.left = 10 + Math.random() * 35 + '%'; el.style.top = 62 + Math.random() * 10 + '%';
+    el.style.animationDelay = Math.random() * 0.2 + 's';
+    s.appendChild(el); setTimeout(() => el.remove(), 1100);
   }
-  setTimeout(() => { dog.classList.remove('happy'); wrap.classList.remove('hop'); }, 1100);
 }
 
-function render() {
-  const bubble = document.getElementById('bubble')!;
-  const btext = document.getElementById('btext')!;
-  const bdet = document.getElementById('bdet')!;
-  const acts = document.getElementById('acts')!;
-  const hint = document.getElementById('hint')!;
-  bubble.classList.remove('show');
-
-  const left = queue.filter((s) => !doneToday().includes(s.id));
-  if (idx >= left.length) {
-    btext.textContent = left.length === 0 && queue.length > 0
-      ? 'На сегодня всё разобрали — ты ⭐. Возвращайся завтра, принесу новые подсказки! 🐾'
-      : 'Пока всё спокойно. Загляну попозже с новыми идеями 🐾';
-    acts.innerHTML = '';
-    hint.textContent = 'Подсказки на сегодня закрыты';
-    return;
-  }
-  const s = left[idx];
-  btext.textContent = s.text;
-  bdet.textContent = s.detail;
-  bubble.classList.add('pop');
-  hint.textContent = `Подсказка ${idx + 1} из ${left.length}`;
-  acts.innerHTML = `
-    <div class="row"><button class="b-do" id="do">${s.action}</button></div>
-    <div class="row"><button class="b-det" id="det">👀 Детали</button><button class="b-later" id="later">😴 Позже</button></div>`;
-  document.getElementById('do')!.onclick = () => {
-    markDone(s.id);
-    setMood(mood + 13);
-    const st = bumpStreak();
-    document.getElementById('streak')!.textContent = '🔥 ' + st;
-    happy();
-    btext.textContent = s.type === 'win' ? 'Гав! Так держать 🐾' : 'Принял! Уже ставлю задачи менеджерам 🐾';
-    acts.innerHTML = '';
-    setTimeout(() => { idx = 0; render(); }, 1300);
-  };
-  document.getElementById('det')!.onclick = () => bubble.classList.toggle('show');
-  document.getElementById('later')!.onclick = () => {
-    setMood(mood - 6);
-    idx++;
-    render();
-  };
+let dotsTimer: number | undefined;
+function ask(item: Q) {
+  if (busy || !model) return;
+  busy = true;
+  stage().classList.add('search');
+  document.querySelectorAll<HTMLButtonElement>('#chips button').forEach((b) => (b.disabled = true));
+  // «копаюсь в данных…»
+  let n = 0;
+  setBubble('🔍 Секунду, посмотрю в данных');
+  dotsTimer = window.setInterval(() => { n = (n + 1) % 4; setBubble('🔍 Секунду, посмотрю в данных' + '.'.repeat(n)); }, 350);
+  const wait = 1500 + Math.random() * 700;
+  window.setTimeout(() => {
+    clearInterval(dotsTimer);
+    stage().classList.remove('search');
+    setBubble(item.a(model!));
+    sparkle();
+    streak += 1; localStorage.setItem('stepanych.asks', String(streak));
+    document.getElementById('ask')!.textContent = '💬 ' + streak;
+    document.querySelectorAll<HTMLButtonElement>('#chips button').forEach((b) => (b.disabled = false));
+    busy = false;
+  }, wait);
 }
 
-// ── загрузка данных ─────────────────────────────────────────────────────────
+function renderChips() {
+  const c = document.getElementById('chips')!;
+  c.innerHTML = '';
+  QUESTIONS.forEach((item) => {
+    const b = document.createElement('button');
+    b.textContent = item.q;
+    b.onclick = () => ask(item);
+    c.appendChild(b);
+  });
+}
+
 async function boot() {
   shell();
-  setMood(mood);
   try {
     const r = await fetch(location.origin + import.meta.env.BASE_URL + 'assets/data/real.json', { cache: 'no-store' });
     model = buildModel(await r.json());
-  } catch {
-    model = buildModel({});
-  }
-  queue = model ? suggestions(model) : [];
-  if (!queue.length) {
-    queue = [{ id: 'idle', type: 'win', text: 'Привет! Я Степаныч, возвращаю клиентов. Данные подтянул — пока новых спящих нет, красота. Загляни позже 🐾', detail: '', action: 'Понял!' }];
-  }
-  render();
+  } catch { model = buildModel({}); }
+  renderChips();
+  setBubble('Привет! Я Степаныч 🐾 Спроси меня про клиентов и возврат — посмотрю в данных. 👇');
 }
 
 boot();

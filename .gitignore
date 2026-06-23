@@ -26,3 +26,6 @@ Thumbs.db
 # посторонние проекты в этой папке (не часть biz-game)
 lottie-player/
 lottie-test/
+
+# бренд-арт агента (не публикуем)
+app/public/assets/agent/
