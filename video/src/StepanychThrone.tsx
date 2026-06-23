@@ -9,7 +9,7 @@ import {
   random,
 } from 'remotion';
 
-type Props = { src: string };
+type Props = { src: string; mode?: 'contain' | 'cover' };
 
 // Натуральные пропорции присланной картинки (1086×1448)
 const IMG_AR = 1086 / 1448; // ширина / высота
@@ -18,16 +18,21 @@ const IMG_AR = 1086 / 1448; // ширина / высота
 // Работает в ЛЮБОМ формате (9:16 / 16:9 / 1:1): картинка вписывается целиком (contain),
 // бока/поля заполняются размытым cover-фоном, а все оверлеи (свечение, искры, монеты, блик)
 // привязаны к реальному прямоугольнику картинки — поэтому ничего не разъезжается.
-export const StepanychThrone: React.FC<Props> = ({ src }) => {
+export const StepanychThrone: React.FC<Props> = ({ src, mode = 'contain' }) => {
   const frame = useCurrentFrame();
   const { width, height, durationInFrames } = useVideoConfig();
   const url = staticFile(src);
 
-  // прямоугольник, в который реально вписана картинка (contain)
+  // прямоугольник, в который реально ложится картинка (contain — целиком; cover — заполняет с обрезкой)
   const canvasAR = width / height;
   let dispW: number, dispH: number;
-  if (canvasAR > IMG_AR) { dispH = height; dispW = height * IMG_AR; } // широкий холст → ограничивает высота
-  else { dispW = width; dispH = width / IMG_AR; }                     // высокий холст → ограничивает ширина
+  if (mode === 'cover') {
+    if (canvasAR > IMG_AR) { dispW = width; dispH = width / IMG_AR; }
+    else { dispH = height; dispW = height * IMG_AR; }
+  } else {
+    if (canvasAR > IMG_AR) { dispH = height; dispW = height * IMG_AR; }
+    else { dispW = width; dispH = width / IMG_AR; }
+  }
   const x0 = (width - dispW) / 2;
   const y0 = (height - dispH) / 2;
   // координаты по ДОЛЯМ картинки → пиксели холста
@@ -67,22 +72,25 @@ export const StepanychThrone: React.FC<Props> = ({ src }) => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#1a120c', overflow: 'hidden' }}>
-      {/* размытый фон-cover — заполняет весь кадр (бока в горизонтали) */}
+      {/* фон-cover, сильно затемнённый — превращаем бока в тёмный «зал» */}
       <Img
         src={url}
         style={{
           position: 'absolute', width: '100%', height: '100%', objectFit: 'cover',
-          filter: 'blur(34px) brightness(0.45) saturate(1.1)', transform: 'scale(1.18)',
+          filter: 'blur(46px) brightness(0.26) saturate(1.05)', transform: 'scale(1.25)',
         }}
       />
-      <AbsoluteFill style={{ background: 'radial-gradient(120% 90% at 50% 45%, #00000000 38%, #000000b0 100%)' }} />
+      {/* золотой ореол-прожектор по центру (трон в луче света) */}
+      <AbsoluteFill style={{ background: 'radial-gradient(58% 52% at 50% 44%, rgba(255,184,70,0.20) 0%, rgba(255,150,40,0.06) 38%, rgba(0,0,0,0) 64%)' }} />
+      {/* тёмные края (зал уходит в тень) */}
+      <AbsoluteFill style={{ background: 'radial-gradient(125% 100% at 50% 46%, #00000000 26%, #04060a 100%)', opacity: 0.9 }} />
 
       {/* резкая картинка целиком (contain) + дыхание-зум */}
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
         <Img
           src={url}
           style={{
-            width: '100%', height: '100%', objectFit: 'contain',
+            width: '100%', height: '100%', objectFit: mode,
             transform: `translateY(${floatY}px) scale(${zoom})`,
             filter: 'drop-shadow(0 20px 50px #000000a0)',
             imageRendering: 'pixelated',

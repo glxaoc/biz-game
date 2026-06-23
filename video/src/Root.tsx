@@ -3,6 +3,7 @@ import { Composition } from 'remotion';
 import { StepanychResult } from './StepanychResult';
 import { StepanychThrone } from './StepanychThrone';
 import { StepanychAnalyzes } from './StepanychAnalyzes';
+import { GennadyShot, GennadyContact } from './Gennady';
 
 // 9:16 (1080×1920) под Reels / Shorts / Stories — помещается на iPhone 13.
 export const RemotionRoot: React.FC = () => {
@@ -51,6 +52,17 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
         defaultProps={{ src: 'stepanych-analyzes.png', debug: false }}
+      />
+      {/* Геннадий (пёс-агент «Аналитик менеджеров») — отдельным файлом */}
+      <Composition id="GennadyContact" component={GennadyContact} durationInFrames={1} fps={30} width={1080} height={320} />
+      <Composition
+        id="GennadyShot"
+        component={GennadyShot}
+        durationInFrames={1}
+        fps={30}
+        width={1024}
+        height={1024}
+        defaultProps={{ frame: 2 }}
       />
     </>
   );
