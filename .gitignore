@@ -22,3 +22,7 @@ app/public/assets/limezu/
 # OS
 .DS_Store
 Thumbs.db
+
+# посторонние проекты в этой папке (не часть biz-game)
+lottie-player/
+lottie-test/
