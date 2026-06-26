@@ -32,18 +32,16 @@ function shell() {
     h1{font-size:22px;margin:8px 0 2px}
     .role{color:#c9a0ff;font-size:13px;font-weight:600;margin-bottom:4px}
     .tag{display:inline-block;font-size:11px;color:#cdbfe6;background:#241c2e;border:1px solid #45375a;border-radius:20px;padding:3px 10px}
-    .stage{position:relative;margin:10px 0 6px;height:280px;border-radius:16px;overflow:hidden;
-      background:radial-gradient(60% 55% at 50% 42%,#33264a,#150f1d 75%);border:1px solid #352a48;
-      display:flex;align-items:center;justify-content:center}
-    .pedestal{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);width:200px;height:38px;
-      background:radial-gradient(closest-side,#b388ff55,transparent);border-radius:50%}
-    .glow{position:absolute;top:50%;left:50%;width:280px;height:280px;transform:translate(-50%,-55%);
-      background:radial-gradient(circle,#b388ff22,transparent 65%);animation:pulse 3s ease-in-out infinite}
-    @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
-    #sprite{position:relative;width:210px;height:210px;image-rendering:pixelated;
-      filter:drop-shadow(0 14px 16px #0008);transform:translateY(-12px)}
+    .stage{position:relative;margin:10px 0 6px;height:280px;border-radius:16px;overflow:hidden;border:1px solid #352a48;background:#140d16}
+    .stage .wall{position:absolute;left:0;right:0;top:0;height:62%;background:url(assets/tilesets/lz_wall.png) repeat;background-size:56px auto;image-rendering:pixelated}
+    .stage .floor{position:absolute;left:0;right:0;top:62%;bottom:0;background:url(assets/tilesets/lz_floor.png) repeat;background-size:56px auto;image-rendering:pixelated}
+    .stage .vin{position:absolute;inset:0;box-shadow:inset 0 0 90px 26px #00000050;pointer-events:none}
+    .shadow{position:absolute;left:50%;top:76%;width:135px;height:22px;transform:translateX(-50%);
+      background:radial-gradient(closest-side,#000a,transparent);border-radius:50%;filter:blur(1px)}
+    #sprite{position:absolute;left:50%;top:50%;width:200px;height:200px;transform:translate(-50%,-56%);image-rendering:pixelated;
+      filter:drop-shadow(0 6px 4px #0006)}
     .stage.think #sprite{animation:nod .5s ease-in-out infinite}
-    @keyframes nod{0%,100%{transform:translateY(-12px)}50%{transform:translateY(-20px)}}
+    @keyframes nod{0%,100%{transform:translate(-50%,-56%)}50%{transform:translate(-50%,-61%)}}
     .dirlbl{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:11px;color:#9c8ab2;background:#0006;border-radius:20px;padding:3px 10px}
     .think-b{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#fbf3e2;color:#241a10;
       border-radius:14px;padding:8px 12px;font-size:13px;display:none;max-width:88%}
@@ -84,9 +82,11 @@ function shell() {
     <span class="tag">пиксельный персонаж · 8 направлений</span>
 
     <div class="stage" id="stage">
-      <div class="glow"></div><div class="pedestal"></div>
-      <div class="think-b" id="thinkb">🔍 смотрю в данных…</div>
+      <div class="wall"></div><div class="floor"></div>
+      <div class="shadow"></div>
       <img id="sprite" alt="Геннадий" />
+      <div class="vin"></div>
+      <div class="think-b" id="thinkb">🔍 смотрю в данных…</div>
       <div class="dirlbl" id="dirlbl"></div>
     </div>
     <div class="ctrl"><button id="prev">◀</button><button class="auto on" id="auto">⟳ авто</button><button id="next">▶</button></div>
