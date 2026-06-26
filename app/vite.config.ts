@@ -8,6 +8,6 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'es2020',
     // две страницы: офис (index) и кабинет агента-компаньона (agent)
-    rollupOptions: { input: { main: 'index.html', agent: 'agent.html', 'agent-stepanych': 'agent-stepanych.html' } },
+    rollupOptions: { input: { main: 'index.html', agent: 'agent.html', 'agent-stepanych': 'agent-stepanych.html', 'agent-gennady': 'agent-gennady.html' } },
   },
 }));
